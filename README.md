@@ -1,4 +1,4 @@
-# Task Tracker (Mars-Grade Edition)
+# Task Tracker
 
 A clean architecture, full-stack Task Tracker application built with Python (FastAPI), React (Material UI), and modern DevOps practices.
 

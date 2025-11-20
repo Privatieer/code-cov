@@ -5,7 +5,7 @@
 **Rationale**: 
 - Allows swapping databases or frameworks without rewriting business rules.
 - Makes unit testing easy by mocking interfaces (Repositories).
-- "Mars-Grade" maintainability: The core logic is isolated and pure.
+- Maintainability: The core logic is isolated and pure.
 
 ## 2. Database Separation
 **Decision**: 
