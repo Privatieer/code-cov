@@ -1,0 +1,25 @@
+[pytest]
+# Coverage-enabled pytest configuration
+# To use: pytest --override-ini=addopts="$(cat pytest.ini.coverage | grep addopts | cut -d'=' -f2-)"
+# Or copy this file over pytest.ini when you need coverage
+
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+asyncio_mode = auto
+markers =
+    unit: Unit tests
+    integration: Integration tests
+    e2e: End-to-end tests
+filterwarnings =
+    ignore::DeprecationWarning:passlib.*
+    ignore::DeprecationWarning:argon2.*
+addopts =
+    --cov=backend.src
+    --cov-report=html
+    --cov-report=term-missing
+    --cov-report=xml
+    --cov-fail-under=70
+    -v
+

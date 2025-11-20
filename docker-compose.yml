@@ -1,0 +1,147 @@
+services:
+  # Frontend (React + Nginx)
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    networks:
+      - app-network
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:8004/api/v1
+
+  # Backend API
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uvicorn backend.src.interface.main:app --host 0.0.0.0 --port 8004 --reload
+    volumes:
+      - ./backend:/app/backend
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/tasktracker
+      - REDIS_URL=redis://redis:6379/0
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_PUBLIC_URL=http://localhost:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+      - S3_BUCKET_NAME=task-attachments
+      - SECRET_KEY=supersecretkeythatshouldbechangedinproduction
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - BACKEND_CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:80,http://127.0.0.1:3000
+      - PYTHONPATH=/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # Celery Worker
+  worker:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A backend.src.infrastructure.services.worker.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app/backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/tasktracker
+      - REDIS_URL=redis://redis:6379/0
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_PUBLIC_URL=http://localhost:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+      - S3_BUCKET_NAME=task-attachments
+      - PYTHONPATH=/app
+    depends_on:
+      - backend
+      - redis
+      - db
+    networks:
+      - app-network
+
+  # Database
+  db:
+    image: postgres:16-alpine
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=tasktracker
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    restart: always
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Object Storage (S3 Compatible)
+  minio:
+    image: minio/minio
+    restart: always
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - "9000:9000" # API
+      - "9001:9001" # Console
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Auto-create the default bucket
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb myminio/task-attachments;
+      /usr/bin/mc anonymous set download myminio/task-attachments;
+      exit 0;
+      "
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  app-network:
+    driver: bridge

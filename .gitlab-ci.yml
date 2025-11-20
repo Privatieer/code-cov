@@ -1,0 +1,81 @@
+stages:
+  - test
+  - e2e
+  - coverage
+
+variables:
+  POSTGRES_DB: tasktracker_test
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/tasktracker_test
+  REDIS_URL: redis://redis:6379/0
+  SECRET_KEY: test-secret-key-for-ci
+  TESTING: "true"
+
+backend-tests:
+  stage: test
+  image: python:3.11-slim
+  services:
+    - postgres:16-alpine
+    - redis:7-alpine
+  before_script:
+    - apt-get update && apt-get install -y curl
+    - pip install poetry
+    - cd backend
+    - poetry install --no-interaction --no-root
+    - poetry run playwright install chromium
+    - poetry run playwright install-deps chromium
+  script:
+    - poetry run pytest tests/unit -v --cov=backend.src --cov-report=xml --cov-report=term
+    - poetry run pytest tests/integration -v --cov=backend.src --cov-report=xml --cov-report=term --cov-append
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: backend/coverage.xml
+    paths:
+      - backend/htmlcov/
+    expire_in: 30 days
+
+e2e-tests:
+  stage: e2e
+  image: python:3.11-slim
+  services:
+    - postgres:16-alpine
+    - redis:7-alpine
+  before_script:
+    - apt-get update && apt-get install -y curl nodejs npm
+    - pip install poetry
+    - cd backend && poetry install --no-interaction --no-root
+    - poetry run playwright install chromium
+    - cd ../frontend && npm ci && npm run build
+    - cd ../backend
+  script:
+    - poetry run uvicorn backend.src.interface.main:app --host 0.0.0.0 --port 8004 &
+    - cd ../frontend && npx serve -s dist -l 3000 &
+    - cd ../backend
+    - sleep 10
+    - curl -f http://localhost:8004/health || exit 1
+    - curl -f http://localhost:3000 || exit 1
+    - FRONTEND_URL=http://localhost:3000 BACKEND_URL=http://localhost:8004 poetry run pytest tests/e2e -v -m e2e
+  artifacts:
+    paths:
+      - backend/test-results/
+    expire_in: 30 days
+  only:
+    - main
+    - develop
+    - merge_requests
+
+coverage-report:
+  stage: coverage
+  image: alpine:latest
+  script:
+    - echo "Coverage report generated in previous stages"
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    paths:
+      - backend/htmlcov/
+    expire_in: 30 days
+
