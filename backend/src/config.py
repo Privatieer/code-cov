@@ -1,6 +1,6 @@
 import os
 from typing import Any, List, Union
-from pydantic import field_validator, AnyHttpUrl
+from pydantic import field_validator, AnyHttpUrl, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -47,6 +47,15 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin")
     S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "task-attachments")
     AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
+
+    @model_validator(mode="after")
+    def validate_security(self) -> "Settings":
+        if not self.DEBUG and self.SECRET_KEY == "supersecretkeythatshouldbechangedinproduction":
+            raise ValueError(
+                "Production Security Violation: You are using the default insecure SECRET_KEY "
+                "with DEBUG=False. Please set a secure SECRET_KEY environment variable."
+            )
+        return self
 
     model_config = SettingsConfigDict(
         env_file=".env", 

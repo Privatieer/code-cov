@@ -1,17 +1,20 @@
 import { useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
 import { TextField, Button, Box, Typography, Alert, Link as MuiLink } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { login } from './api';
+import { useAuthStore } from '../../lib/store';
 
 export const LoginPage = () => {
   const { register, handleSubmit } = useForm();
+  const navigate = useNavigate();
+  const setToken = useAuthStore((state) => state.setToken);
   
   const mutation = useMutation({
     mutationFn: login,
     onSuccess: (data) => {
-      localStorage.setItem('token', data.access_token);
-      window.location.href = '/';
+      setToken(data.access_token);
+      navigate('/');
     }
   });
 
