@@ -13,13 +13,15 @@ from sqlalchemy import event
 import json
 
 from backend.src.infrastructure.persistence.sqlalchemy.database import Base, get_db
-from backend.src.interface.api.dependencies import get_db_session
+from backend.src.interface.api.dependencies import get_db_session, get_file_storage
 from backend.src.interface.main import app
 from backend.src.infrastructure.persistence.sqlalchemy.models.schema import (
     UserModel, TaskModel, ChecklistModel, ChecklistItemModel, AttachmentModel, TaskListModel
 )
 from backend.src.infrastructure.security.hashing import get_password_hash
+from backend.src.domain.ports.repositories.base import IFileStorage
 from uuid import uuid4
+from unittest.mock import AsyncMock
 
 # Suppress deprecation warnings from third-party libraries
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="passlib")
@@ -74,6 +76,32 @@ async def set_test_mode():
     yield
     # Clean up - remove TESTING env var after test
     os.environ.pop("TESTING", None)
+
+
+@pytest.fixture(scope="function")
+def mock_file_storage():
+    """Create a mock file storage that doesn't require MinIO"""
+    mock_storage = AsyncMock(spec=IFileStorage)
+    mock_storage.upload = AsyncMock(return_value="https://example.com/test-file.pdf")
+    mock_storage.delete = AsyncMock(return_value=True)
+    return mock_storage
+
+
+@pytest.fixture(scope="function", autouse=True)
+def override_file_storage(mock_file_storage):
+    """Override the file storage dependency to use a mock (no MinIO needed)
+    
+    This fixture runs automatically for all integration tests to prevent
+    MinIO connection errors in CI/CD environments where MinIO is not available.
+    """
+    def _get_file_storage():
+        return mock_file_storage
+    
+    # Override before any requests are made
+    app.dependency_overrides[get_file_storage] = _get_file_storage
+    yield
+    # Clean up after test
+    app.dependency_overrides.pop(get_file_storage, None)
 
 
 @pytest.fixture(scope="function")
