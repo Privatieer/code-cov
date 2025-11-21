@@ -208,7 +208,7 @@ class TestUserJourney:
         # This is optional - task lists might not be visible
         # assert sidebar_visible, "Task list sidebar should be visible"
         
-        # Step 8: Logout
+        # Step 9: Logout
         logout_button = page.get_by_role("button", name=re.compile("Logout|Sign Out", re.I))
         if logout_button.is_visible(timeout=2000):
             logout_button.click()

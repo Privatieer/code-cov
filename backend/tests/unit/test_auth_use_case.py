@@ -9,12 +9,20 @@ from backend.src.application.use_cases.auth_use_case import AuthUseCase
 from backend.src.application.dtos.auth_dtos import UserCreateDTO, UserLoginDTO
 from backend.src.domain.entities.models import User, UserRole
 from backend.src.domain.ports.repositories.base import IUserRepository
+from backend.src.config import settings
 
 
 @pytest.mark.unit
 class TestAuthUseCase:
     """Test cases for AuthUseCase"""
     
+    @pytest.fixture(autouse=True)
+    def setup_settings(self):
+        """Reset settings before each test"""
+        original_testing = settings.TESTING
+        yield
+        settings.TESTING = original_testing
+
     @pytest.fixture
     def auth_use_case(
         self,
@@ -31,6 +39,7 @@ class TestAuthUseCase:
     ):
         """Test successful user registration"""
         # Arrange
+        settings.TESTING = False  # Ensure we test production flow
         dto = UserCreateDTO(
             email="test@example.com",
             password="Password123"
@@ -201,6 +210,7 @@ class TestAuthUseCase:
     ):
         """Test that password is properly hashed during registration"""
         # Arrange
+        settings.TESTING = False  # Ensure we test production flow
         dto = UserCreateDTO(
             email="newuser@example.com",
             password="SecurePassword123!"
@@ -237,6 +247,7 @@ class TestAuthUseCase:
     ):
         """Test that verification token is generated during registration"""
         # Arrange
+        settings.TESTING = False  # Ensure we test production flow
         dto = UserCreateDTO(
             email="tokenuser@example.com",
             password="Password123"
