@@ -25,7 +25,13 @@ export const RegisterPage = () => {
         Sign up
       </Typography>
       <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 1 }}>
-        {mutation.isError && <Alert severity="error">Registration failed. Email might be taken.</Alert>}
+        {mutation.isError && (
+          <Alert severity="error">
+            {mutation.error instanceof Error 
+              ? (mutation.error as any).response?.data?.detail || mutation.error.message 
+              : "Registration failed. Please try again."}
+          </Alert>
+        )}
         
         <TextField
           margin="normal"
@@ -42,9 +48,16 @@ export const RegisterPage = () => {
           fullWidth
           label="Password"
           type="password"
-          {...register('password', { required: true, minLength: 6 })}
+          {...register('password', { 
+            required: "Password is required", 
+            minLength: { value: 8, message: "Password must be at least 8 characters" },
+            pattern: {
+              value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/,
+              message: "Password must contain at least one uppercase letter, one lowercase letter, and one number"
+            }
+          })}
           error={!!errors.password}
-          helperText={errors.password ? "Password must be at least 6 characters" : ""}
+          helperText={errors.password ? (errors.password as any).message : "Must be at least 8 characters with uppercase, lowercase, and number"}
         />
         <Button
           type="submit"

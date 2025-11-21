@@ -26,12 +26,16 @@ function App() {
   );
 }
 
+import { useQueryClient } from '@tanstack/react-query';
+
 const MainApp = () => {
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
     logout();
+    queryClient.removeQueries(); // Clear all cached data
     navigate('/login');
   };
 

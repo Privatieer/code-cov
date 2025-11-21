@@ -1,6 +1,6 @@
 from typing import Optional, List
 from uuid import UUID
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -113,6 +113,14 @@ class SQLAlchemyTaskRepository(ITaskRepository):
                 query = query.where(TaskModel.priority == filters["priority"])
             if "task_list_id" in filters and filters["task_list_id"]:
                 query = query.where(TaskModel.task_list_id == filters["task_list_id"])
+            if "search" in filters and filters["search"]:
+                search_term = f"%{filters['search']}%"
+                query = query.where(
+                    or_(
+                        TaskModel.title.ilike(search_term),
+                        TaskModel.description.ilike(search_term)
+                    )
+                )
             # Add other filters here...
 
         query = query.limit(limit).offset(offset).order_by(TaskModel.created_at.desc())

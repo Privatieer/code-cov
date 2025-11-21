@@ -11,7 +11,7 @@ from backend.src.infrastructure.middleware.rate_limiter import conditional_limit
 router = APIRouter()
 
 @router.post("/register", response_model=UserResponseDTO)
-@conditional_limit("5/minute")
+@conditional_limit("60/minute")
 async def register(
     request: Request,
     user_in: UserCreateDTO,
@@ -44,7 +44,7 @@ async def verify_email(
     return {"message": "Email verified successfully"}
 
 @router.post("/token", response_model=TokenDTO)
-@conditional_limit("5/minute")
+@conditional_limit("60/minute")
 async def login(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),

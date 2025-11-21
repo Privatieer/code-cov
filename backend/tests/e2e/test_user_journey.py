@@ -4,6 +4,7 @@ End-to-end tests simulating complete user journeys
 import pytest
 import re
 import time
+import os
 
 # Try to import playwright, skip tests if not available
 try:
@@ -19,6 +20,9 @@ pytestmark = pytest.mark.skipif(
     not PLAYWRIGHT_AVAILABLE,
     reason="Playwright not installed. Install with: poetry add --group dev playwright && poetry run playwright install chromium"
 )
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 
 
 @pytest.mark.e2e
@@ -37,7 +41,7 @@ class TestUserJourney:
         updates tasks, adds checklists, and manages task lists
         """
         # Navigate to frontend
-        page.goto("http://localhost:3000")
+        page.goto(FRONTEND_URL)
         
         # Step 1: User Registration
         # Click register link if on login page
@@ -80,7 +84,7 @@ class TestUserJourney:
         
         # Step 3: Verify we're logged in (should see tasks page)
         # Check for task-related UI elements
-        expect(page).to_have_url("http://localhost:3000/")
+        expect(page).to_have_url(f"{FRONTEND_URL}/")
         
         # Look for task management UI (could be "Add Task", "New Task", or task list)
         task_ui_visible = (
@@ -154,7 +158,46 @@ class TestUserJourney:
             checkbox.check()
             page.wait_for_timeout(1000)
         
-        # Step 7: Verify task list functionality
+        # Step 7: Add a checklist to the task
+        # Find the edit button for the task
+        task_card = page.locator(".MuiCard-root").filter(has_text="E2E Test Task - Complete User Journey").first
+        edit_button = task_card.get_by_role("button", name="edit task")
+        
+        if edit_button.is_visible(timeout=2000):
+            edit_button.click()
+            
+            # Wait for dialog
+            expect(page.get_by_text("Edit Task")).to_be_visible()
+            
+            # Add a checklist
+            checklist_input = page.get_by_placeholder("New Checklist Title")
+            if checklist_input.is_visible(timeout=2000):
+                checklist_input.fill("E2E Checklist")
+                
+                add_checklist_btn = page.get_by_role("button", name="add checklist")
+                add_checklist_btn.click()
+                
+                # Verify checklist added
+                expect(page.get_by_text("E2E Checklist")).to_be_visible()
+                
+                # Add an item to the checklist
+                item_input = page.get_by_placeholder("Add item...")
+                if item_input.is_visible(timeout=2000):
+                    item_input.fill("Checklist Item 1")
+                    item_input.press("Enter")
+                    
+                    # Verify item added
+                    expect(page.get_by_text("Checklist Item 1")).to_be_visible()
+            
+            # Save changes
+            save_button = page.get_by_role("button", name="Save Changes")
+            if save_button.is_visible():
+                save_button.click()
+                
+                # Wait for dialog to close
+                expect(page.get_by_text("Edit Task")).not_to_be_visible()
+
+        # Step 8: Verify task list functionality
         # Check if we can see task lists/sidebar
         sidebar_visible = (
             page.get_by_text("Task Lists").is_visible(timeout=2000) or
@@ -172,7 +215,7 @@ class TestUserJourney:
             page.wait_for_timeout(1000)
             
             # Verify we're logged out (should redirect to login)
-            expect(page).to_have_url("http://localhost:3000/login", timeout=5000)
+            expect(page).to_have_url(f"{FRONTEND_URL}/login", timeout=5000)
     
     @pytest.mark.asyncio
     async def test_user_login_and_task_creation(
@@ -185,7 +228,7 @@ class TestUserJourney:
         Simpler E2E test: Existing user logs in and creates a task
         """
         # Navigate to frontend
-        page.goto("http://localhost:3000/login")
+        page.goto(f"{FRONTEND_URL}/login")
         
         # Fill login form
         email_input = page.get_by_label("Email")
@@ -202,7 +245,7 @@ class TestUserJourney:
         page.wait_for_timeout(2000)
         
         # Verify we're logged in
-        expect(page).to_have_url("http://localhost:3000/", timeout=5000)
+        expect(page).to_have_url(f"{FRONTEND_URL}/", timeout=5000)
         
         # Create a task via API to verify backend is working
         from backend.src.infrastructure.security.jwt_token import create_access_token

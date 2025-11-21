@@ -1,15 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Box, Card, CardContent, Typography, Chip, IconButton, 
   Dialog, TextField, MenuItem, Stack, Grid, Button, Link as MuiLink,
-  FormControl, InputLabel, Select, CircularProgress, Checkbox
+  FormControl, InputLabel, Select, CircularProgress, Checkbox, InputAdornment
 } from '@mui/material';
+import { debounce } from '@mui/material/utils';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import EditIcon from '@mui/icons-material/Edit';
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
+import SearchIcon from '@mui/icons-material/Search';
 import { 
     getTasks, createTask, deleteTask, uploadAttachment, Task, updateTask, deleteAttachment,
     createChecklist, deleteChecklist, addChecklistItem, updateChecklistItem, deleteChecklistItem, Checklist, ChecklistItem
@@ -325,7 +327,7 @@ const EditTaskDialog = ({ open, onClose, task: initialTask }: { open: boolean; o
                                 }
                             }}
                         />
-                        <IconButton onClick={handleAddChecklist} color="primary" disabled={!newChecklistTitle.trim()}>
+                        <IconButton onClick={handleAddChecklist} color="primary" disabled={!newChecklistTitle.trim()} aria-label="add checklist">
                             <AddIcon />
                         </IconButton>
                     </Stack>
@@ -788,7 +790,7 @@ const TaskCard = ({ task }: { task: Task }) => {
                   <AttachFileIcon fontSize="small" />
                   <input type="file" hidden onChange={handleFileChange} />
                </IconButton>
-               <IconButton onClick={() => setEditingTask(task)} size="small" color="secondary" sx={{ bgcolor: 'rgba(255,255,255,0.5)' }}>
+               <IconButton onClick={() => setEditingTask(task)} size="small" color="secondary" sx={{ bgcolor: 'rgba(255,255,255,0.5)' }} aria-label="edit task">
                   <EditIcon fontSize="small" />
                </IconButton>
               <IconButton onClick={() => deleteMutation.mutate(task.id)} size="small" color="error" sx={{ bgcolor: 'rgba(255,0,0,0.1)' }}>
@@ -805,11 +807,27 @@ const TaskCard = ({ task }: { task: Task }) => {
 
 export const TasksPage = () => {
   const [isCreateOpen, setCreateOpen] = useState(false);
-  const { filterStatus, filterPriority, setFilterPriority, setFilterStatus } = useTaskFilters();
+  const { filterStatus, filterPriority, searchQuery, setFilterPriority, setFilterStatus, setSearchQuery } = useTaskFilters();
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
 
-  const { data: tasks, isLoading, isError } = useQuery({
-    queryKey: ['tasks', filterStatus, filterPriority],
-    queryFn: () => getTasks({ status: filterStatus || undefined, priority: filterPriority || undefined }),
+  // Debounce search updates
+  const debouncedSetSearch = useMemo(
+    () => debounce((value: string) => setDebouncedSearch(value), 300),
+    []
+  );
+
+  useEffect(() => {
+    debouncedSetSearch(searchQuery);
+  }, [searchQuery, debouncedSetSearch]);
+
+  const { data: tasks, isLoading, isError, isFetching } = useQuery({
+    queryKey: ['tasks', filterStatus, filterPriority, debouncedSearch],
+    queryFn: () => getTasks({ 
+      status: filterStatus || undefined, 
+      priority: filterPriority || undefined,
+      search: debouncedSearch || undefined
+    }),
+    placeholderData: (previousData) => previousData, // Keep showing previous data while fetching
   });
 
   if (isLoading) return (
@@ -842,6 +860,21 @@ export const TasksPage = () => {
 
       {/* Filters */}
       <Stack direction="row" spacing={2} mb={4}>
+        <TextField
+          placeholder="Search tasks..."
+          size="small"
+          value={searchQuery}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ width: 300 }}
+        />
+
         <FormControl sx={{ minWidth: 140 }} size="small">
           <InputLabel>Status</InputLabel>
           <Select value={filterStatus} label="Status" onChange={(e: any) => setFilterStatus(e.target.value)}>
@@ -864,7 +897,7 @@ export const TasksPage = () => {
         </FormControl>
       </Stack>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ opacity: isFetching ? 0.7 : 1, transition: 'opacity 0.2s' }}>
         <Grid item xs={12}>
           <AnimatePresence mode="popLayout">
             {tasks?.map((task: Task) => (

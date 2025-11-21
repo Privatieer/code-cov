@@ -10,7 +10,7 @@ from backend.src.interface.api.dependencies import get_task_list_use_case, get_c
 router = APIRouter()
 
 @router.post("/", response_model=TaskListResponseDTO, status_code=status.HTTP_201_CREATED)
-@conditional_limit("20/minute")
+@conditional_limit("60/minute")
 async def create_task_list(
     request: Request,
     dto: TaskListCreateDTO,

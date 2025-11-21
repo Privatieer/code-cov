@@ -12,7 +12,7 @@ from backend.src.infrastructure.middleware.rate_limiter import conditional_limit
 router = APIRouter()
 
 @router.post("/", response_model=TaskResponseDTO, status_code=status.HTTP_201_CREATED)
-@conditional_limit("10/minute")
+@conditional_limit("60/minute")
 async def create_task(
     request: Request,
     task_dto: TaskCreateDTO,
@@ -41,11 +41,17 @@ async def list_tasks(
     task_uc: TaskUseCase = Depends(get_task_use_case),
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     task_list_id: Optional[UUID] = Query(None),
     limit: int = 20,
     offset: int = 0,
 ):
-    filters = {"status": status, "priority": priority, "task_list_id": task_list_id}
+    filters = {
+        "status": status, 
+        "priority": priority, 
+        "task_list_id": task_list_id,
+        "search": search
+    }
     tasks = await task_uc.get_user_tasks(UUID(user_id), filters, limit, offset)
     return [TaskResponseDTO.model_validate(task) for task in tasks]
 

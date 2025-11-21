@@ -38,6 +38,7 @@ export const getTasks = async (filters?: any) => {
   const params = new URLSearchParams();
   if (filters?.status) params.append('status', filters.status);
   if (filters?.priority) params.append('priority', filters.priority);
+  if (filters?.search) params.append('search', filters.search);
   
   const response = await api.get('/tasks/', { params });
   return response.data;

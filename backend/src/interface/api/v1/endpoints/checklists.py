@@ -25,7 +25,7 @@ router = APIRouter()
 # DELETE /api/v1/checklist-items/{item_id} -> Delete item
 
 @router.post("/tasks/{task_id}/checklists", response_model=ChecklistResponseDTO, status_code=status.HTTP_201_CREATED)
-@conditional_limit("30/minute")
+@conditional_limit("60/minute")
 async def create_checklist(
     request: Request,
     task_id: UUID,

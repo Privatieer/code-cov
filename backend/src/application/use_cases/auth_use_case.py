@@ -3,6 +3,7 @@ from backend.src.domain.ports.repositories.base import IUserRepository
 from backend.src.infrastructure.security.hashing import get_password_hash, verify_password
 from backend.src.infrastructure.security.jwt_token import create_access_token
 from backend.src.application.dtos.auth_dtos import UserCreateDTO, UserLoginDTO, TokenDTO
+from backend.src.config import settings
 from typing import Optional
 from uuid import UUID
 import uuid
@@ -26,7 +27,7 @@ class AuthUseCase:
             email=dto.email,
             password_hash=hashed_password,
             verification_token=verification_token,
-            is_verified=False
+            is_verified=settings.TESTING  # Auto-verify in testing mode
         )
         
         user = await self.user_repo.create(new_user)

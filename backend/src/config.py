@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     # App
     APP_NAME: str = os.getenv("APP_NAME", "Task Tracker")
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
+    TESTING: bool = os.getenv("TESTING", "False").lower() == "true"
     API_V1_STR: str = os.getenv("API_V1_STR", "/api/v1")
 
     # Database

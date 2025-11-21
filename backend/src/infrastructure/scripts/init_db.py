@@ -44,6 +44,30 @@ async def init_db_data():
             await repo.update(existing_admin)
             log.info("Admin password updated successfully.")
             
+
+        # Check if admin exists
+        user_email = "user@example.com"
+        user_password = "user123"
+        existing_user = await repo.get_by_email(user_email)
+        
+        if not existing_user:
+            log.info(f"Creating default user: {user_email}")
+            user_user = User(
+                email=user_email,
+                password_hash=get_password_hash(user_password),
+                role=UserRole.USER,
+                is_verified=True
+            )
+            created_user = await repo.create(user_user)
+            log.info(f"User created successfully. ID: {created_user.id}")
+        else:
+            # Update password hash in case it changed or database was reset
+            log.info("Default user already exists. Updating password hash...")
+            existing_user.password_hash = get_password_hash(user_password)
+            existing_user.is_verified = True
+            await repo.update(existing_user)
+            log.info("User password updated successfully.")
+
 if __name__ == "__main__":
     asyncio.run(init_db_data())
 
